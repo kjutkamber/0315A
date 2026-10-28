@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="sr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#000000">
+<title>0315A – polasci</title>
+<style>
+*{-webkit-box-sizing:border-box;box-sizing:border-box}
+html,body{height:100%;margin:0;background:#000;color:#fff;font:15px/1.25 "Helvetica Neue",Helvetica,Arial,sans-serif;-webkit-tap-highlight-color:transparent;overflow:hidden}
+button{font:inherit;color:#fff;background:#151515;border:1px solid #333;border-radius:10px;padding:6px 12px}
+button:active{background:#2a2a2a}
+#app{display:flex;flex-direction:column;height:100%}
+header{flex:none;display:flex;align-items:center;padding:4px 10px;border-bottom:2px solid #fff;min-height:40px}
+.ti{flex:1;min-width:0}
+.ti b{display:block;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ti small{display:block;font-size:11px;color:#9aa0a6}
+.ti small.bad{color:#ff6b6b}
+#clk{font-size:20px;font-weight:bold;margin:0 10px;font-variant-numeric:tabular-nums}
+header button{margin-left:6px;padding:4px 10px;font-size:18px}
+#chips{flex:none;display:flex;gap:8px;padding:5px 10px;overflow-x:auto;-webkit-overflow-scrolling:touch;border-bottom:1px solid #222}
+.chip{flex:none;min-width:46px;height:34px;border-radius:17px;border:2px solid;font-weight:bold;font-size:16px;padding:0 10px}
+.chip.off{background:transparent!important;color:#777;border-color:#444!important}
+.chip.add{border-color:#555;color:#bbb;background:transparent}
+#list{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.row{display:flex;align-items:center;padding:6px 10px;border-bottom:1px solid #222;min-height:62px}
+.row.armed{border-left:5px solid #ffb000;padding-left:5px}
+.bd{flex:none;min-width:46px;height:46px;border-radius:23px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:bold;padding:0 8px;margin-right:12px}
+.mid{flex:1;min-width:0}
+.nm{font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nonames .nm{display:none}
+.sub{font-size:12px;color:#9aa0a6}
+.eta{text-align:right;color:#ffb000;font-size:30px;font-weight:bold;line-height:1;white-space:nowrap;margin-left:8px}
+.eta small{display:block;font-size:12px;font-weight:normal;color:#9aa0a6;margin-top:3px}
+.dot{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:8px;vertical-align:middle;position:relative;top:-3px;border:2px solid #9aa0a6}
+.dot.on{background:#34c759;border-color:#34c759}
+.msg{color:#9aa0a6;text-align:center;padding:24px 10px}
+#tgt{flex:none;display:flex;align-items:center;background:#241a00;border-top:2px solid #ffb000;padding:5px 10px;font-size:14px}
+#tgt[hidden]{display:none}
+#tgt span{flex:1}
+.ov{position:fixed;left:0;top:0;right:0;bottom:0;background:#000;z-index:50;display:flex;flex-direction:column}
+.ov[hidden]{display:none}
+.oh{flex:none;display:flex;align-items:center;padding:6px 10px;border-bottom:2px solid #fff;min-height:48px}
+.oh h1{flex:1;font-size:17px;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ob{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:8px 10px}
+.ob h2{font-size:13px;color:#9aa0a6;font-weight:normal;margin:10px 0 6px}
+.fl{display:flex;flex-wrap:wrap;gap:8px}
+.tb{min-width:92px;padding:6px 8px;text-align:center;font-size:22px;font-weight:bold;border-radius:12px}
+.tb small{display:block;font-size:11px;font-weight:normal;color:#9aa0a6}
+.tb.sel{background:#ffb000;color:#000;border-color:#ffb000}
+.tb.sel small{color:#000}
+.dc{text-align:left;font-size:14px;padding:8px 12px}
+.dc.sel{border-color:#ffb000;color:#ffb000}
+.ctl{display:flex;align-items:center;gap:10px;margin:6px 0}
+.ctl b{min-width:70px;text-align:center;font-size:20px}
+.ctl button{width:44px;height:40px;font-size:20px;padding:0}
+.srow{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #222}
+.chk{width:28px;height:28px}
+#alarm{position:fixed;left:0;top:0;right:0;bottom:0;background:#06140c;z-index:90;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+#alarm[hidden]{display:none}
+#alarm h1{font-size:34px;margin:0 0 8px}
+#alarm p{font-size:22px;margin:0 0 16px;color:#cfe8d8}
+#alarm button{font-size:22px;padding:12px 30px;background:#1d6b3f;border-color:#2c9a5c}
+#flash{position:fixed;left:0;top:0;right:0;bottom:0;background:#fff;opacity:0;pointer-events:none;z-index:99}
+#flash.go{animation:fl 2.6s ease-in-out 3}
+@keyframes fl{0%{opacity:0}35%{opacity:1}70%{opacity:0}100%{opacity:0}}
+#rot{position:fixed;left:0;top:0;right:0;bottom:0;background:#000;z-index:200;display:none;align-items:center;justify-content:center;text-align:center;font-size:22px;padding:30px}
+@media (orientation:portrait){#rot{display:flex}}
+</style></head><body>
+<div id="app">
+  <header>
+    <div class="ti"><b id="stn"></b><small id="sync"></small></div>
+    <div id="clk"></div>
+    <button id="bSet" title="Podešavanja">⚙</button><button id="bFs" title="Pun ekran">⛶</button>
+  </header>
+  <div id="chips"></div>
+  <div id="list"></div>
+  <div id="tgt" hidden><span id="tgtx"></span><button id="tgtx2">✕</button></div>
+</div>
+
+<div id="pick" class="ov" hidden>
+  <div class="oh"><div class="bd" id="pbd" style="margin:0 10px 0 0"></div><h1 id="pti"></h1><button id="pclose">✕</button></div>
+  <div class="ob" id="pkb"></div>
+</div>
+
+<div id="set" class="ov" hidden>
+  <div class="oh"><h1>Podešavanja</h1><button id="sclose">Gotovo</button></div>
+  <div class="ob">
+    <div class="srow"><span>Prikaži nazive smerova (ime trase)</span><input type="checkbox" id="cNames" class="chk"></div>
+    <div class="srow"><span>Upozori me unapred</span><div class="ctl" style="margin:0"><button id="lm">−</button><b id="lv"></b><button id="lp">+</button></div></div>
+    <div class="srow"><span id="tstat" class="sub" style="font-size:13px;flex:1;padding-right:10px">Zvuk i blic: nije probano</span><button id="btest">Probaj zvuk i blic</button></div>
+    <h2>Linije na stanici (✕ da ukloniš)</h2>
+    <div class="fl" id="klist"></div>
+  </div>
+</div>
+
+<div id="alarm" hidden>
+  <h1>🚶 Vreme je da kreneš</h1>
+  <p id="atx"></p>
+  <button id="aoff">Ugasi</button>
+</div>
+<div id="flash"></div>
+<div id="rot">Okreni telefon u položen (landscape) položaj</div>
+
+<script>
+var API='https://nycbus.stevan-gajinov5.workers.dev',CITY='ns',STID='0315A',SNAME='Bulevar Jovana Dučića-Bate Brkića';
+var REFRESH=15000;
+function $(i){return document.getElementById(i)}
+function ls(k,d){try{var v=localStorage.getItem(k);return v===null?d:JSON.parse(v)}catch(e){return d}}
+function sv(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+function el(tag,cls,txt){var e=document.createElement(tag);if(cls)e.className=cls;if(txt!==undefined)e.textContent=txt;return e}
+var COLORS=['#0039a6','#ff6319','#6cbe45','#b933ad','#ee352e','#00933c','#00add0','#996633','#fccc0a','#e6007e','#1b998b','#7a5195','#f2542d','#3a86ff'];
+var TR={'А':'A','Б':'B','В':'V','Г':'G','Д':'D','Е':'E','Ж':'Z','З':'Z','И':'I','Ј':'J','К':'K','Л':'L','М':'M','Н':'N','О':'O','П':'P','Р':'R','С':'S','Т':'T','У':'U','Ф':'F','Х':'H','Ц':'C','Ч':'C','Ш':'S'};
+function norm(s){return String(s==null?'':s).toUpperCase().replace(/[А-Ш]/g,function(c){return TR[c]||c}).replace(/[^0-9A-Z]/g,'')}
+function color(n){var h=0,s=norm(n);for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))%997;return COLORS[h%COLORS.length]}
+function nat(a,b){var x=parseInt(a,10),y=parseInt(b,10);if(!isNaN(x)&&!isNaN(y)&&x!==y)return x-y;return a<b?-1:(a>b?1:0)}
+function pad2(n){return n<10?'0'+n:''+n}
+function hhmm(t){return pad2(Math.floor(t/60)%24)+':'+pad2(t%60)}
+function durTxt(m){return m<1?'sad':m<60?m+' min':Math.floor(m/60)+' h '+(m%60)+' min'}
+function fmtSec(s){return s<60?'sad':Math.round(s/60)+' min'}
+
+/* ---------- stanje ---------- */
+var S={uid:ls('uid',null),name:ls('sname',SNAME),
+  known:ls('known',['2','7A','7B','8','55NK']),hidden:ls('hidden',[]),names:ls('names',true),lead:ls('lead',10),
+  dirs:ls('dirs',{}),offs:ls('offs',{}),seen:ls('seen',{}),tgt:ls('tgt',null)};
+var LIVE=[],lastOk=0,nextAt=0,lastErr='',PK=null,alarmOpen=false,alarmTimer=null,alarmReps=0,TORCH=ls('torch',null);
+
+/* ---------- mreža ---------- */
+function get(path,ms){
+  var ctl=window.AbortController?new AbortController():null,to=setTimeout(function(){if(ctl)ctl.abort()},ms||15000);
+  return fetch(API+path,{signal:ctl?ctl.signal:undefined}).then(function(r){
+    clearTimeout(to);
+    return r.json().then(function(j){if(!r.ok)throw new Error((j&&j.error)||r.status);return j});
+  }).catch(function(e){clearTimeout(to);throw e});
+}
+function resolveStation(){
+  if(S.uid)return Promise.resolve();
+  return get('/api/stations?city='+CITY).then(function(sts){
+    var q=norm(STID);
+    for(var i=0;i<sts.length;i++)if(norm(sts[i].id)===q){S.uid=sts[i].uid;S.name=sts[i].name;sv('uid',S.uid);sv('sname',S.name);return}
+    throw new Error('stanica '+STID+' nije nađena');
+  });
+}
+
+/* ---------- vreme / raspored ---------- */
+function schedDay(){var w=new Date(Date.now()-3*36e5).getDay();return w===0?'N':(w===6?'S':'R')}
+function sameTomorrow(){var w=new Date(Date.now()-3*36e5).getDay(),w2=(w+1)%7,t=function(x){return x===0?'N':(x===6?'S':'R')};return t(w)===t(w2)}
+function dayMid(){var d=new Date(Date.now()-3*36e5);return new Date(d.getFullYear(),d.getMonth(),d.getDate()).getTime()}
+function nowMin(){return Math.floor((Date.now()-dayMid())/6e4)}
+function absMs(depMin){return dayMid()+depMin*6e4}
+function firstGE(t,n){for(var i=0;i<t.length;i++)if(t[i]>=n)return t[i];return undefined}
+function nextDep(d,now){
+  var n=firstGE(d.times,now);
+  if(n!==undefined)return {t:n,m:n-now,tom:false};
+  if(!d.times.length)return null;
+  return {t:d.times[0],m:d.times[0]+1440-now,tom:true,approx:!sameTomorrow()}}
+var SCH={};
+function sched(line){
+  var k=norm(line)+'|'+schedDay(),c=SCH[k]||(SCH[k]={data:null,t:0,busy:false}),age=Date.now()-c.t;
+  if(!c.busy&&(c.t===0||(c.data?age>6e5:age>3e5))){
+    c.busy=true;
+    get('/api/schedule?city='+CITY+'&line='+encodeURIComponent(line)+'&day='+schedDay(),30000).then(function(d){
+      c.data=d;c.t=Date.now();c.busy=false;render();if(PK)renderPick();
+    }).catch(function(e){c.err=String(e.message||e);c.t=Date.now();c.busy=false;if(PK)renderPick()});
+  }
+  return c.data;
+}
+/* koji smer iz rasporeda odgovara ovoj stanici */
+var LATM={'а':'a','б':'b','в':'v','г':'g','д':'d','ђ':'dj','е':'e','ж':'z','з':'z','и':'i','ј':'j','к':'k','л':'l','љ':'lj','м':'m','н':'n','њ':'nj','о':'o','п':'p','р':'r','с':'s','т':'t','ћ':'c','у':'u','ф':'f','х':'h','ц':'c','ч':'c','ш':'s','џ':'dz','č':'c','ć':'c','š':'s','ž':'z','đ':'dj'};
+var ROM={i:'1',ii:'2',iii:'3',iv:'4'};
+function toks(s){var t=String(s||'').toLowerCase().replace(/[а-џčćšžđ]/g,function(c){return LATM[c]||c}).split(/[^a-z0-9]+/),o=[];
+  for(var i=0;i<t.length;i++)if(t[i])o.push(ROM.hasOwnProperty(t[i])?ROM[t[i]]:t[i]);return o}
+function one(x,Y){var m=0;for(var i=0;i<Y.length;i++){var y=Y[i],v=0;
+  if(x==y)v=1;else if((x.length>=3&&y.indexOf(x)===0)||(y.length>=3&&x.indexOf(y)===0))v=.8;
+  else if((x.length==1&&y.charAt(0)==x)||(y.length==1&&x.charAt(0)==y))v=.4;
+  if(v>m)m=v}return m}
+function sim(a,b){var A=toks(a),B=toks(b),t=0,i;if(!A.length||!B.length)return 0;
+  for(i=0;i<A.length;i++)t+=one(A[i],B);for(i=0;i<B.length;i++)t+=one(B[i],A);return t/(A.length+B.length)}
+function ends(s){var p=String(s||'').split(/\s*(?:=>|->|→|⇒|➔|–|—)\s*|\s+-\s+/),o=[];
+  for(var i=0;i<p.length;i++){var x=p[i].replace(/^\s+|\s+$/g,'');if(x)o.push(x)}
+  return o.length?{fr:o[0],to:o[o.length-1]}:{fr:'',to:''}}
+function pickDirs(dirs,title,number){
+  if(dirs.length<2||!title)return dirs;
+  var w=String(title).replace(/^\s+|\s+$/g,'').split(/\s+/);
+  if(norm(w[0])===norm(number))w.shift();
+  var e=ends(w.join(' '));if(!e.to||e.fr===e.to)return dirs;
+  var sc=[],i,idx=[];
+  for(i=0;i<dirs.length;i++){var de=ends(dirs[i].label);sc.push(2*sim(e.to,de.to)+(e.fr&&de.fr?sim(e.fr,de.fr):0));idx.push(i)}
+  idx.sort(function(a,b){return sc[b]-sc[a]});
+  return (sc[idx[0]]>=1.2&&sc[idx[0]]-sc[idx[1]]>=.8)?[dirs[idx[0]]]:dirs}
+function lastTitle(line){var s=S.seen[norm(line)];return s?s.title:''}
+function dirsFor(line,data){
+  var all=(data&&data.dirs)||[];
+  if(all.length<2)return all;
+  var saved=S.dirs[norm(line)],i;
+  if(saved)for(i=0;i<all.length;i++)if(norm(all[i].label)===saved)return [all[i]];
+  return pickDirs(all,lastTitle(line),line);
+}
+
+/* ---------- uživo ---------- */
+function liveFor(line){
+  var out=[],k=norm(line),i,j;
+  for(i=0;i<LIVE.length;i++)if(norm(LIVE[i].number)===k)for(j=0;j<LIVE[i].arrivals.length;j++){var a=LIVE[i].arrivals[j];out.push({sec:a.sec,stops:a.stops,gps:!!(a.lat&&a.lon),title:LIVE[i].title})}
+  out.sort(function(a,b){return a.sec-b.sec});return out}
+function learn(){
+  var ch=false,i,n;
+  for(i=0;i<LIVE.length;i++){
+    n=LIVE[i].number;
+    if(S.known.indexOf(n)<0&&!S.known.some(function(x){return norm(x)===norm(n)})){S.known.push(n);ch=true}
+    S.seen[norm(n)]={t:Date.now(),title:LIVE[i].title};
+  }
+  if(ch)sv('known',S.known);
+  sv('seen',S.seen);
+}
+function poll(){
+  resolveStation().then(function(){return get('/api/arrivals?city='+CITY+'&uid='+encodeURIComponent(S.uid))}).then(function(j){
+    LIVE=j;lastOk=Date.now();lastErr='';learn();syncTarget();render();
+  }).catch(function(e){lastErr=String(e.message||e);renderSync()});
+}
+
+/* ---------- prikaz ---------- */
+function visible(){var o=[];for(var i=0;i<S.known.length;i++)if(S.hidden.indexOf(norm(S.known[i]))<0)o.push(S.known[i]);return o}
+function rowsData(){
+  var out=[],vis=visible();
+  vis.forEach(function(l){
+    var live=liveFor(l);
+    if(live.length)out.push({line:l,live:true,arr:live});
+    else{
+      var d=sched(l),nd=null,label='';
+      if(d&&d.dirs&&d.dirs.length)dirsFor(l,d).forEach(function(x){var n=nextDep(x,nowMin());if(n&&(!nd||n.m<nd.m)){nd=n;label=x.label}});
+      out.push({line:l,live:false,nd:nd,label:label,loading:!d});
+    }
+  });
+  out.sort(function(a,b){
+    if(a.live!==b.live)return a.live?-1:1;
+    if(a.live)return a.arr[0].sec-b.arr[0].sec;
+    if(!a.nd)return b.nd?1:0;if(!b.nd)return -1;return a.nd.m-b.nd.m});
+  return out;
+}
+function renderSync(){
+  var s=$('sync');
+  if(lastErr){s.textContent='Greška: '+lastErr;s.className='bad';return}
+  s.className='';
+  if(!lastOk){s.textContent='Učitavam…';return}
+  var ago=Math.max(0,Math.round((Date.now()-lastOk)/1000)),left=Math.max(0,Math.ceil((nextAt-Date.now())/1000));
+  s.textContent='#'+STID+' · sinhronizovano pre '+ago+' s · osvežavanje za '+left+' s';
+}
+function renderChips(){
+  var box=$('chips');box.innerHTML='';
+  S.known.slice().sort(nat).forEach(function(l){
+    var off=S.hidden.indexOf(norm(l))>=0,b=el('button','chip'+(off?' off':''),l);
+    b.style.background=color(l);b.style.borderColor=color(l);
+    b.onclick=function(){var k=norm(l),i=S.hidden.indexOf(k);if(i>=0)S.hidden.splice(i,1);else S.hidden.push(k);sv('hidden',S.hidden);render()};
+    box.appendChild(b);
+  });
+  var a=el('button','chip add','+');a.onclick=addLine;box.appendChild(a);
+}
+function addLine(){
+  var v=norm(prompt('Broj linije (npr. 7A):')||'');
+  if(!v||v.length>5)return;
+  for(var i=0;i<S.known.length;i++)if(norm(S.known[i])===v)return;
+  S.known.push(v);sv('known',S.known);render();
+}
+function renderRows(){
+  var box=$('list'),top=box.scrollTop,data=rowsData();
+  box.innerHTML='';
+  document.body.classList.toggle('nonames',!S.names);
+  if(!visible().length){box.appendChild(el('div','msg','Nijedna linija nije izabrana – dodirni broj linije gore.'))}
+  data.forEach(function(r){
+    var row=el('div','row'),bd=el('div','bd',r.line),mid=el('div','mid'),eta=el('div','eta'),sp=el('span'),sm=el('small'),nm=el('div','nm'),sub=el('div','sub');
+    bd.style.background=color(r.line);
+    if(S.tgt&&norm(S.tgt.line)===norm(r.line))row.className+=' armed';
+    if(r.live){
+      var a=r.arr[0],dot=el('i','dot'+(a.gps?' on':''));
+      nm.textContent=a.title||'';
+      if(r.arr.length>1){var z=[];for(var k=1;k<r.arr.length&&k<3;k++)z.push(fmtSec(r.arr[k].sec));sub.textContent='Zatim: '+z.join(', ')}
+      sp.textContent=fmtSec(a.sec);sp.insertBefore(dot,sp.firstChild);
+      sm.textContent=a.stops>0?a.stops+(a.stops==1?' stanica':' stanice'):'';
+    }else{
+      nm.textContent=r.label||'';
+      sub.textContent=r.loading?'Učitavam raspored…':'Nema vozila uživo · po rasporedu';
+      if(r.nd){
+        sp.textContent=durTxt(r.nd.m);sp.insertBefore(el('i','dot'),sp.firstChild);
+        sm.textContent=(r.nd.tom?'sutra '+(r.nd.approx?'~':''):'polazak ')+hhmm(r.nd.t)+' sa početne';
+      }else sp.textContent='—';
+    }
+    mid.appendChild(nm);mid.appendChild(sub);eta.appendChild(sp);eta.appendChild(sm);
+    row.appendChild(bd);row.appendChild(mid);row.appendChild(eta);
+    row.onclick=function(){openPick(r.line)};
+    box.appendChild(row);
+  });
+  box.scrollTop=top;
+}
+function render(){renderChips();renderRows();renderTarget();renderSync()}
+
+/* ---------- izbor busa (red vožnje) ---------- */
+function openPick(line){PK=line;$('pick').hidden=false;sched(line);renderPick()}
+function closePick(){PK=null;$('pick').hidden=true}
+$('pclose').onclick=closePick;
+function depList(dirs,n){
+  var now=nowMin(),out=[];
+  dirs.forEach(function(d){d.times.forEach(function(t){if(t>=now)out.push({t:t,tom:false})})});
+  if(out.length<n)dirs.forEach(function(d){d.times.slice(0,n).forEach(function(t){out.push({t:t+1440,tom:true})})});
+  out.sort(function(a,b){return a.t-b.t});
+  return out.slice(0,n);
+}
+function offFor(line){var v=S.offs[norm(line)];return v==null?8:v}
+function renderPick(){
+  var line=PK;if(line==null)return;
+  var box=$('pkb');box.innerHTML='';
+  var bd=$('pbd');bd.textContent=line;bd.style.background=color(line);
+  $('pti').textContent='Linija '+line+' – izaberi bus koji želiš da stigneš';
+  var live=liveFor(line);
+  if(live.length){
+    box.appendChild(el('h2',null,'Uživo na stanici'));
+    var f0=el('div','fl');
+    live.forEach(function(a){
+      var at=Date.now()+a.sec*1000,d=new Date(at),b=el('button','tb',fmtSec(a.sec)),sm=el('small',null,'~'+pad2(d.getHours())+':'+pad2(d.getMinutes()));
+      b.appendChild(sm);
+      if(S.tgt&&S.tgt.src==='live'&&norm(S.tgt.line)===norm(line)&&Math.abs(S.tgt.arriveAt-at)<3*6e4)b.className+=' sel';
+      b.onclick=function(){arm({line:line,arriveAt:at,src:'live'})};
+      f0.appendChild(b);
+    });
+    box.appendChild(f0);
+  }
+  var c=SCH[norm(line)+'|'+schedDay()],d=c&&c.data;
+  box.appendChild(el('h2',null,'Raspored (polasci sa početne stanice)'));
+  if(!d){box.appendChild(el('div','msg',c&&c.err?'Raspored nije dostupan ('+c.err+')':'Učitavam raspored…'));return}
+  if(!d.dirs||!d.dirs.length){box.appendChild(el('div','msg','Nema rasporeda za ovu liniju danas.'+(d.note?' ('+String(d.note).slice(0,110)+')':'')));return}
+  var dirs=dirsFor(line,d);
+  if(d.dirs.length>1){
+    var fd=el('div','fl');fd.style.marginBottom='8px';
+    d.dirs.forEach(function(x){
+      var b=el('button','dc'+(dirs.length===1&&dirs[0]===x?' sel':''),x.label||('Smer '+x.dir));
+      b.onclick=function(){S.dirs[norm(line)]=norm(x.label);sv('dirs',S.dirs);render();renderPick()};
+      fd.appendChild(b);
+    });
+    box.appendChild(fd);
+  }
+  var cl=el('div','ctl');
+  cl.appendChild(el('span','sub','Vožnja od početne do ove stanice:'));
+  var m1=el('button',null,'−'),v=el('b',null,offFor(line)+' min'),p1=el('button',null,'+');
+  m1.onclick=function(){S.offs[norm(line)]=Math.max(1,offFor(line)-1);sv('offs',S.offs);renderPick()};
+  p1.onclick=function(){S.offs[norm(line)]=Math.min(40,offFor(line)+1);sv('offs',S.offs);renderPick()};
+  cl.appendChild(m1);cl.appendChild(v);cl.appendChild(p1);box.appendChild(cl);
+  if(dirs.length!==1){box.appendChild(el('div','msg','Izaberi smer gore da vidiš polaske.'));return}
+  var fl=el('div','fl'),off=offFor(line);
+  depList(dirs,18).forEach(function(x){
+    var m=x.t-nowMin(),b=el('button','tb',(x.tom?'~':'')+hhmm(x.t)),sm=el('small',null,'za '+durTxt(m)+' · na stanici ~'+hhmm(x.t+off));
+    b.appendChild(sm);
+    if(S.tgt&&S.tgt.src==='sched'&&norm(S.tgt.line)===norm(line)&&S.tgt.dep===x.t)b.className+=' sel';
+    b.onclick=function(){arm({line:line,arriveAt:absMs(x.t)+off*6e4,src:'sched',dep:x.t})};
+    fl.appendChild(b);
+  });
+  box.appendChild(fl);
+}
+
+/* ---------- obaveštenje ---------- */
+var AC=null;
+function audio(){
+  if(!AC){var C=window.AudioContext||window.webkitAudioContext;if(C){try{AC=new C()}catch(e){}}}
+  if(AC&&AC.state==='suspended'&&AC.resume)AC.resume();
+  return AC;
+}
+function bell(f,t0,dur,vol){
+  [1,2.01].forEach(function(mul,i){
+    var o=AC.createOscillator(),g=AC.createGain(),v=vol*(i?0.25:1);
+    o.type='sine';o.frequency.value=f*mul;
+    g.gain.setValueAtTime(0.0001,t0);g.gain.exponentialRampToValueAtTime(v,t0+0.03);g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
+    o.connect(g);g.connect(AC.destination);o.start(t0);o.stop(t0+dur+0.05);
+  });
+}
+function chime(){ // tih, mirno zvono: C5 – E5 – G5
+  if(!audio())return;
+  var t=AC.currentTime+0.05;
+  bell(523.25,t,2.6,0.16);bell(659.25,t+0.45,2.6,0.16);bell(783.99,t+0.9,3.0,0.16);
+}
+function sleep(ms){return new Promise(function(r){setTimeout(r,ms)})}
+function openCam(){return navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'user'}}})}
+function testTorch(){ // mora iz dodira; traži dozvolu za kameru
+  if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)){TORCH=false;sv('torch',false);return Promise.resolve(false)}
+  return openCam().then(function(st){
+    var tr=st.getVideoTracks()[0],cap=(tr.getCapabilities&&tr.getCapabilities())||{};
+    st.getTracks().forEach(function(t){t.stop()});
+    TORCH=!!cap.torch;sv('torch',TORCH);return TORCH;
+  }).catch(function(){TORCH=false;sv('torch',false);return false});
+}
+function torchPulses(n){
+  if(TORCH!==true)return Promise.resolve();
+  var st=null;
+  return openCam().then(function(s){
+    st=s;var tr=s.getVideoTracks()[0],i=0;
+    function step(){
+      if(i++>=n)return;
+      return tr.applyConstraints({advanced:[{torch:true}]}).then(function(){return sleep(1400)})
+        .then(function(){return tr.applyConstraints({advanced:[{torch:false}]})}).then(function(){return sleep(1200)}).then(step);
+    }
+    return step();
+  }).catch(function(){}).then(function(){if(st)st.getTracks().forEach(function(t){t.stop()})});
+}
+function screenFlash(){var f=$('flash');f.classList.remove('go');void f.offsetWidth;f.classList.add('go')}
+function notify(){
+  chime();screenFlash();torchPulses(3);
+  try{if(navigator.vibrate)navigator.vibrate([300,500,300])}catch(e){}
+}
+var WL=null;
+function keepAwake(){
+  try{if(navigator.wakeLock&&!WL)navigator.wakeLock.request('screen').then(function(l){WL=l;l.addEventListener('release',function(){WL=null})}).catch(function(){})}catch(e){}
+}
+document.addEventListener('visibilitychange',function(){if(!document.hidden)keepAwake()});
+
+function arm(t){
+  t.fired=false;S.tgt=t;sv('tgt',t);audio();keepAwake();
+  if(TORCH===null)testTorch().then(updTstat);
+  closePick();render();
+}
+function clearTarget(){S.tgt=null;sv('tgt',null);stopAlarm();render()}
+function syncTarget(){ // poveži izabrani bus sa vozilom uživo kad se pojavi
+  var t=S.tgt;if(!t)return;
+  var live=liveFor(t.line),best=null,i,lim=(t.src==='live'?4:8)*6e4;
+  for(i=0;i<live.length;i++){var at=Date.now()+live[i].sec*1000,df=Math.abs(at-t.arriveAt);if(df<=lim&&(!best||df<best.df))best={at:at,df:df}}
+  if(best){t.arriveAt=best.at;t.src='live';sv('tgt',t)}
+}
+function renderTarget(){
+  var b=$('tgt'),t=S.tgt;
+  if(!t){b.hidden=true;return}
+  b.hidden=false;
+  var m=Math.round((t.arriveAt-Date.now())/6e4),d=new Date(t.arriveAt),al=new Date(t.arriveAt-S.lead*6e4);
+  $('tgtx').textContent='⏰ '+t.line+' · stiže '+(t.src==='live'?'':'~')+pad2(d.getHours())+':'+pad2(d.getMinutes())+(t.src==='live'?' (uživo)':' (po rasporedu)')
+    +(t.fired?' · za '+Math.max(0,m)+' min':' · alarm u '+pad2(al.getHours())+':'+pad2(al.getMinutes()));
+}
+$('tgtx2').onclick=clearTarget;
+function updAlarmText(){
+  var t=S.tgt;if(!t)return;
+  var m=Math.max(0,Math.round((t.arriveAt-Date.now())/6e4));
+  $('atx').textContent='Linija '+t.line+' stiže na stanicu za '+m+' min';
+}
+function showAlarm(){
+  $('alarm').hidden=false;alarmOpen=true;alarmReps=0;updAlarmText();notify();
+  if(alarmTimer)clearInterval(alarmTimer);
+  alarmTimer=setInterval(function(){if(++alarmReps>6){stopAlarm();return}notify()},45000);
+}
+function stopAlarm(){$('alarm').hidden=true;alarmOpen=false;if(alarmTimer){clearInterval(alarmTimer);alarmTimer=null}}
+$('aoff').onclick=stopAlarm;
+
+/* ---------- podešavanja ---------- */
+function updTstat(){
+  $('tstat').textContent='Zvuk: radi posle dodira. Blic kamere: '+(TORCH===true?'radi':TORCH===false?'nije dostupan (koristi se blic ekrana)':'nije probano');
+}
+function renderSettings(){
+  $('cNames').checked=!!S.names;$('lv').textContent=S.lead+' min';updTstat();
+  var k=$('klist');k.innerHTML='';
+  S.known.slice().sort(nat).forEach(function(l){
+    var b=el('button','chip',l+'  ✕');b.style.background=color(l);b.style.borderColor=color(l);
+    b.onclick=function(){S.known=S.known.filter(function(x){return norm(x)!==norm(l)});sv('known',S.known);renderSettings();render()};
+    k.appendChild(b);
+  });
+}
+$('bSet').onclick=function(){renderSettings();$('set').hidden=false};
+$('sclose').onclick=function(){$('set').hidden=true;render()};
+$('cNames').onchange=function(){S.names=this.checked;sv('names',S.names);render()};
+function setLead(v){
+  S.lead=Math.max(3,Math.min(30,v));sv('lead',S.lead);$('lv').textContent=S.lead+' min';
+  if(S.tgt&&S.tgt.fired&&Date.now()<S.tgt.arriveAt-S.lead*6e4){S.tgt.fired=false;sv('tgt',S.tgt)}
+  renderTarget();
+}
+$('lm').onclick=function(){setLead(S.lead-1)};
+$('lp').onclick=function(){setLead(S.lead+1)};
+$('btest').onclick=function(){
+  audio();keepAwake();chime();screenFlash();
+  $('tstat').textContent='Probam kameru…';
+  testTorch().then(function(ok){updTstat();if(ok)torchPulses(2)});
+};
+$('bFs').onclick=function(){
+  var e=document.documentElement,r=e.requestFullscreen||e.webkitRequestFullscreen;
+  if(r){try{var p=r.call(e);if(p&&p.catch)p.catch(function(){})}catch(x){}}
+  setTimeout(function(){try{var q=screen.orientation&&screen.orientation.lock&&screen.orientation.lock('landscape');if(q&&q.catch)q.catch(function(){})}catch(x){}},400);
+  audio();keepAwake();
+};
+
+/* ---------- start ---------- */
+$('stn').textContent=S.name;
+setInterval(function(){
+  var d=new Date();$('clk').textContent=pad2(d.getHours())+':'+pad2(d.getMinutes());
+  renderSync();
+  var t=S.tgt;
+  if(t){
+    var now=Date.now();
+    if(now>t.arriveAt+3*6e4){clearTarget();return}
+    if(!t.fired&&now>=t.arriveAt-S.lead*6e4){t.fired=true;sv('tgt',t);showAlarm()}
+    renderTarget();if(alarmOpen)updAlarmText();
+  }
+},1000);
+if(S.tgt&&Date.now()>S.tgt.arriveAt+3*6e4){S.tgt=null;sv('tgt',null)}
+function loop(){nextAt=Date.now()+REFRESH;poll()}
+render();loop();setInterval(loop,REFRESH);
+keepAwake();
+document.addEventListener('click',function first(){audio();keepAwake();document.removeEventListener('click',first)});
+</script></body></html>
