@@ -229,8 +229,9 @@ function learn(){
   if(ch)sv('known',S.known);
   sv('seen',S.seen);
 }
+var pollN=0;
 function poll(){
-  resolveStation().then(function(){return get('/api/arrivals?city='+CITY+'&uid='+encodeURIComponent(S.uid))}).then(function(j){
+  resolveStation().then(function(){return get('/api/arrivals?city='+CITY+'&uid='+encodeURIComponent(S.uid)+'&vis='+document.visibilityState+'&n='+(++pollN))}).then(function(j){
     LIVE=j;lastOk=Date.now();lastErr='';learn();syncTarget();render();
   }).catch(function(e){lastErr=String(e.message||e);renderSync()});
 }
@@ -456,17 +457,30 @@ function notify(){
   if(S.tts.on)runSeq(function(){return {line:S.tgt?S.tgt.line:'',m:minLeft()}});else chime();
 }
 var WL=null;
-function keepAwake(){
-  try{if(navigator.wakeLock&&!WL)navigator.wakeLock.request('screen').then(function(l){WL=l;l.addEventListener('release',function(){WL=null})}).catch(function(){})}catch(e){}
+function keepAwake(){ // ekran se drži upaljen samo dok je neki bus izabran (alarm)
+  try{if(S.tgt&&navigator.wakeLock&&!WL)navigator.wakeLock.request('screen').then(function(l){WL=l;l.addEventListener('release',function(){WL=null})}).catch(function(){})}catch(e){}
 }
-document.addEventListener('visibilitychange',function(){if(!document.hidden)keepAwake()});
+function releaseAwake(){try{if(WL){WL.release();WL=null}}catch(e){}}
 
+/* osvežavanje samo dok je ekran upaljen (ili dok je bus izabran) */
+var pollTimer=null;
+var lastPoll=0;
+function loop(){lastPoll=Date.now();nextAt=Date.now()+REFRESH;poll()}
+function startPolling(){if(pollTimer)return;loop();pollTimer=setInterval(loop,REFRESH)}
+function stopPolling(){if(pollTimer){clearInterval(pollTimer);pollTimer=null}}
+function onVis(){
+  if(document.hidden){if(!S.tgt)stopPolling()}   // ekran ugašen: staje, osim ako čekaš izabrani bus
+  else{if(!pollTimer||Date.now()-lastPoll>5000){stopPolling();startPolling()}keepAwake()} // ekran upaljen: odmah povuci podatke
+}
+document.addEventListener('visibilitychange',onVis);
+document.addEventListener('resume',onVis);
+window.addEventListener('pageshow',onVis);
 function arm(t){
   t.fired=false;S.tgt=t;sv('tgt',t);audio();keepAwake();
   if(TORCH===null)testTorch().then(updTstat);
   closePick();render();
 }
-function clearTarget(){S.tgt=null;sv('tgt',null);stopAlarm();render()}
+function clearTarget(){S.tgt=null;sv('tgt',null);stopAlarm();releaseAwake();if(document.hidden)stopPolling();render()}
 function syncTarget(){ // poveži izabrani bus sa vozilom uživo kad se pojavi
   var t=S.tgt;if(!t)return;
   var live=liveFor(t.line),best=null,i,lim=(t.src==='live'?4:8)*6e4;
@@ -579,8 +593,6 @@ setInterval(function(){
   }
 },1000);
 if(S.tgt&&Date.now()>S.tgt.arriveAt+3*6e4){S.tgt=null;sv('tgt',null)}
-function loop(){nextAt=Date.now()+REFRESH;poll()}
-render();loop();setInterval(loop,REFRESH);
-keepAwake();
+render();if(!document.hidden)startPolling();keepAwake();
 document.addEventListener('click',function first(){audio();keepAwake();document.removeEventListener('click',first)});
 </script></body></html>
