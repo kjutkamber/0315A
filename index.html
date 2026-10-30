@@ -21,7 +21,8 @@ header button{margin-left:6px;padding:4px 10px;font-size:18px}
 .chip{flex:none;min-width:46px;height:34px;border-radius:17px;border:2px solid;font-weight:bold;font-size:16px;padding:0 10px}
 .chip.off{background:transparent!important;color:#777;border-color:#444!important}
 .chip.add{border-color:#555;color:#bbb;background:transparent}
-#list{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+#list{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;transition:opacity .3s}
+#list.stale{opacity:.35}
 .row{display:flex;align-items:center;padding:6px 10px;border-bottom:1px solid #222;min-height:62px}
 .row.armed{border-left:5px solid #ffb000;padding-left:5px}
 .bd{flex:none;min-width:46px;height:46px;border-radius:23px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:bold;padding:0 8px;margin-right:12px}
@@ -89,6 +90,7 @@ input[type=range]{width:50%}
   <div class="ob">
     <div class="srow"><span>Prikaži nazive smerova (ime trase)</span><input type="checkbox" id="cNames" class="chk"></div>
     <div class="srow"><span>Upozori me unapred</span><div class="ctl" style="margin:0"><button id="lm">−</button><b id="lv"></b><button id="lp">+</button></div></div>
+    <div class="srow"><span>Osvežavanje staje posle neaktivnosti</span><select id="sIdle"><option value="30">30 s</option><option value="60">1 min</option><option value="120">2 min</option><option value="300">5 min</option><option value="0">nikad</option></select></div>
     <div class="srow"><span>Govor (čita liniju i minute)</span><input type="checkbox" id="cTts" class="chk"></div>
     <div class="srow"><span>Jezik govora</span><select id="tLang"><option value="en">English</option><option value="sr">Srpski</option></select></div>
     <div class="srow"><span>Glas</span><div style="display:flex;gap:6px;max-width:70%"><select id="tVoice" style="max-width:none;flex:1"></select><button id="tTry">▶</button></div></div>
@@ -131,7 +133,7 @@ function fmtSec(s){return s<60?'sad':Math.round(s/60)+' min'}
 /* ---------- stanje ---------- */
 var S={uid:ls('uid',null),name:ls('sname',SNAME),
   known:ls('known',['2','7A','7B','8','55NK']),hidden:ls('hidden',[]),names:ls('names',true),lead:ls('lead',10),
-  dirs:ls('dirs',{}),offs:ls('offs',{}),seen:ls('seen',{}),tgt:ls('tgt',null),alias:ls('alias',{'9A':'9'}),
+  dirs:ls('dirs',{}),offs:ls('offs',{}),seen:ls('seen',{}),tgt:ls('tgt',null),alias:ls('alias',{'9A':'9'}),idle:ls('idle',60),
   tts:ls('tts',{on:true,lang:'en',voice:'Google UK English Male',rate:0.9,pitch:0.9,reps:3})};
 function canon(n){var t=S.alias[norm(n)];return t?t:n}
 /* spojene linije: 9A je ista linija kao 9 (produžetak do nekoliko stanica dalje) */
@@ -259,6 +261,7 @@ function renderSync(){
   var s=$('sync');
   if(lastErr){s.textContent='Greška: '+lastErr;s.className='bad';return}
   s.className='';
+  if(paused){s.textContent='⏸ Osvežavanje pauzirano – dodirni ekran za nove podatke';return}
   if(!lastOk){s.textContent='Učitavam…';return}
   var ago=Math.max(0,Math.round((Date.now()-lastOk)/1000)),left=Math.max(0,Math.ceil((nextAt-Date.now())/1000));
   s.textContent='#'+STID+' · sinhronizovano pre '+ago+' s · osvežavanje za '+left+' s';
@@ -470,13 +473,22 @@ function startPolling(){if(pollTimer)return;loop();pollTimer=setInterval(loop,RE
 function stopPolling(){if(pollTimer){clearInterval(pollTimer);pollTimer=null}}
 function onVis(){
   if(document.hidden){if(!S.tgt)stopPolling()}   // ekran ugašen: staje, osim ako čekaš izabrani bus
-  else{if(!pollTimer||Date.now()-lastPoll>5000){stopPolling();startPolling()}keepAwake()} // ekran upaljen: odmah povuci podatke
+  else{lastTouch=Date.now();paused=false;$('list').classList.remove('stale');if(!pollTimer||Date.now()-lastPoll>5000){stopPolling();startPolling()}keepAwake()} // ekran upaljen: odmah povuci podatke
 }
+/* neaktivnost: kiosk aplikacije i screensaveri ne pokreću 'visibilitychange',
+   pa se osvežavanje pauzira kad nema dodira određeno vreme; svaki dodir ga odmah nastavlja */
+var lastTouch=Date.now(),paused=false;
+function pauseIdle(){stopPolling();paused=true;$('list').classList.add('stale');renderSync()}
+function touched(){
+  lastTouch=Date.now();
+  if(paused){paused=false;$('list').classList.remove('stale');if(!document.hidden)startPolling();renderSync()}
+}
+['touchstart','pointerdown','mousedown','keydown'].forEach(function(ev){document.addEventListener(ev,touched,true)});
 document.addEventListener('visibilitychange',onVis);
 document.addEventListener('resume',onVis);
 window.addEventListener('pageshow',onVis);
 function arm(t){
-  t.fired=false;S.tgt=t;sv('tgt',t);audio();keepAwake();
+  touched();t.fired=false;S.tgt=t;sv('tgt',t);audio();keepAwake();
   if(TORCH===null)testTorch().then(updTstat);
   closePick();render();
 }
@@ -525,6 +537,7 @@ function fillVoices(){
 if(window.speechSynthesis)speechSynthesis.onvoiceschanged=fillVoices;
 function saveTts(){sv('tts',S.tts)}
 function renderSettings(){
+  $('sIdle').value=String(S.idle);
   $('cTts').checked=!!S.tts.on;$('tLang').value=S.tts.lang;$('tRate').value=S.tts.rate;$('tPitch').value=S.tts.pitch;$('tReps').value=S.tts.reps;
   $('trv').textContent=S.tts.rate;$('tpv').textContent=S.tts.pitch;$('tnv').textContent=S.tts.reps;fillVoices();
   $('cNames').checked=!!S.names;$('lv').textContent=S.lead+' min';updTstat();
@@ -550,6 +563,7 @@ function renderSettings(){
 }
 $('bSet').onclick=function(){renderSettings();$('set').hidden=false};
 $('sclose').onclick=function(){$('set').hidden=true;render()};
+$('sIdle').onchange=function(){S.idle=parseInt(this.value,10);sv('idle',S.idle);touched()};
 $('cTts').onchange=function(){S.tts.on=this.checked;saveTts()};
 $('tLang').onchange=function(){S.tts.lang=this.value;S.tts.voice='';saveTts();fillVoices();var v=ttsVoice();if(v){S.tts.voice=v.name;saveTts()}};
 function trySay(){audio();speakText(sayText('7A',10))}
@@ -583,6 +597,7 @@ $('bFs').onclick=function(){
 $('stn').textContent=S.name;
 setInterval(function(){
   var d=new Date();$('clk').textContent=pad2(d.getHours())+':'+pad2(d.getMinutes());
+  if(!document.hidden&&S.idle&&!S.tgt&&pollTimer&&Date.now()-lastTouch>S.idle*1000)pauseIdle();
   renderSync();
   var t=S.tgt;
   if(t){
