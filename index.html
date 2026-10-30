@@ -55,6 +55,8 @@ header button{margin-left:6px;padding:4px 10px;font-size:18px}
 .ctl button{width:44px;height:40px;font-size:20px;padding:0}
 .srow{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #222}
 .chk{width:28px;height:28px}
+select{font:inherit;color:#fff;background:#151515;border:1px solid #333;border-radius:10px;padding:8px;max-width:58%}
+input[type=range]{width:50%}
 #alarm{position:fixed;left:0;top:0;right:0;bottom:0;background:#06140c;z-index:90;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
 #alarm[hidden]{display:none}
 #alarm h1{font-size:34px;margin:0 0 8px}
@@ -87,7 +89,13 @@ header button{margin-left:6px;padding:4px 10px;font-size:18px}
   <div class="ob">
     <div class="srow"><span>Prikaži nazive smerova (ime trase)</span><input type="checkbox" id="cNames" class="chk"></div>
     <div class="srow"><span>Upozori me unapred</span><div class="ctl" style="margin:0"><button id="lm">−</button><b id="lv"></b><button id="lp">+</button></div></div>
-    <div class="srow"><span id="tstat" class="sub" style="font-size:13px;flex:1;padding-right:10px">Zvuk i blic: nije probano</span><button id="btest">Probaj zvuk i blic</button></div>
+    <div class="srow"><span>Govor (čita liniju i minute)</span><input type="checkbox" id="cTts" class="chk"></div>
+    <div class="srow"><span>Jezik govora</span><select id="tLang"><option value="en">English</option><option value="sr">Srpski</option></select></div>
+    <div class="srow"><span>Glas</span><select id="tVoice"></select></div>
+    <div class="srow"><span>Brzina <b id="trv"></b></span><input type="range" id="tRate" min="0.5" max="1.5" step="0.05"></div>
+    <div class="srow"><span>Visina <b id="tpv"></b></span><input type="range" id="tPitch" min="0.7" max="1.3" step="0.05"></div>
+    <div class="srow"><span>Ponavljanja <b id="tnv"></b></span><input type="range" id="tReps" min="1" max="5" step="1"></div>
+    <div class="srow"><span id="tstat" class="sub" style="font-size:13px;flex:1;padding-right:10px">Zvuk i blic: nije probano</span><button id="btest">Probaj alarm (zvuk, govor, blic)</button></div>
     <h2>Linije na stanici (✕ da ukloniš)</h2>
     <div class="fl" id="klist"></div>
   </div>
@@ -121,7 +129,8 @@ function fmtSec(s){return s<60?'sad':Math.round(s/60)+' min'}
 /* ---------- stanje ---------- */
 var S={uid:ls('uid',null),name:ls('sname',SNAME),
   known:ls('known',['2','7A','7B','8','55NK']),hidden:ls('hidden',[]),names:ls('names',true),lead:ls('lead',10),
-  dirs:ls('dirs',{}),offs:ls('offs',{}),seen:ls('seen',{}),tgt:ls('tgt',null)};
+  dirs:ls('dirs',{}),offs:ls('offs',{}),seen:ls('seen',{}),tgt:ls('tgt',null),
+  tts:ls('tts',{on:true,lang:'en',voice:'Google UK English Male',rate:0.9,pitch:0.9,reps:3})};
 var LIVE=[],lastOk=0,nextAt=0,lastErr='',PK=null,alarmOpen=false,alarmTimer=null,alarmReps=0,TORCH=ls('torch',null);
 
 /* ---------- mreža ---------- */
@@ -398,9 +407,45 @@ function torchPulses(n){
   }).catch(function(){}).then(function(){if(st)st.getTracks().forEach(function(t){t.stop()})});
 }
 function screenFlash(){var f=$('flash');f.classList.remove('go');void f.offsetWidth;f.classList.add('go')}
+/* govor: zvono → govor → zvono, ponovljeno */
+var seqRun=0;
+function ttsVoice(){
+  var vs=(window.speechSynthesis&&speechSynthesis.getVoices())||[],i,t=S.tts;
+  for(i=0;i<vs.length;i++)if(vs[i].name===t.voice)return vs[i];
+  var want=t.lang==='sr'?/^(sr|hr|bs)/i:/^en-GB/i;
+  for(i=0;i<vs.length;i++)if(want.test(vs[i].lang))return vs[i];
+  want=t.lang==='sr'?/^(sr|hr|bs)/i:/^en/i;
+  for(i=0;i<vs.length;i++)if(want.test(vs[i].lang))return vs[i];
+  return null;
+}
+function sayText(line,m){
+  var L=String(line).replace(/\s+/g,'').toUpperCase().replace(/([0-9])([A-Z])/,'$1 $2');
+  if(S.tts.lang==='en')return m<1?'Line '+L+' is arriving now.':'Line '+L+' arrives in '+m+(m==1?' minute.':' minutes.');
+  return m<1?'Linija '+L+' stiže sada.':'Linija '+L+', stiže za '+m+(m==1?' minut.':' minuta.');
+}
+function speakText(txt){
+  return new Promise(function(res){
+    if(!window.speechSynthesis||!window.SpeechSynthesisUtterance)return res();
+    var u=new SpeechSynthesisUtterance(txt),v=ttsVoice(),done=false,fin=function(){if(!done){done=true;res()}};
+    if(v){u.voice=v;u.lang=v.lang}else u.lang=S.tts.lang==='sr'?'sr-RS':'en-GB';
+    u.rate=S.tts.rate;u.pitch=S.tts.pitch;u.volume=1;u.onend=fin;u.onerror=fin;setTimeout(fin,9000);
+    try{speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){fin()}
+  });
+}
+function stopSeq(){seqRun++;try{if(window.speechSynthesis)speechSynthesis.cancel()}catch(e){}}
+async function runSeq(getInfo){
+  var id=++seqRun,n=S.tts.reps;
+  for(var i=0;i<n&&id===seqRun;i++){
+    chime();await sleep(2600);if(id!==seqRun)break;
+    var inf=getInfo();await speakText(sayText(inf.line,inf.m));if(id!==seqRun)break;
+    await sleep(400);chime();await sleep(2800);await sleep(1200);
+  }
+}
+function minLeft(){return S.tgt?Math.max(0,Math.round((S.tgt.arriveAt-Date.now())/6e4)):0}
 function notify(){
-  chime();screenFlash();torchPulses(3);
+  screenFlash();torchPulses(3);
   try{if(navigator.vibrate)navigator.vibrate([300,500,300])}catch(e){}
+  if(S.tts.on)runSeq(function(){return {line:S.tgt?S.tgt.line:'',m:minLeft()}});else chime();
 }
 var WL=null;
 function keepAwake(){
@@ -437,16 +482,29 @@ function updAlarmText(){
 function showAlarm(){
   $('alarm').hidden=false;alarmOpen=true;alarmReps=0;updAlarmText();notify();
   if(alarmTimer)clearInterval(alarmTimer);
-  alarmTimer=setInterval(function(){if(++alarmReps>6){stopAlarm();return}notify()},45000);
+  alarmTimer=setInterval(function(){if(++alarmReps>4){stopAlarm();return}notify()},60000);
 }
-function stopAlarm(){$('alarm').hidden=true;alarmOpen=false;if(alarmTimer){clearInterval(alarmTimer);alarmTimer=null}}
+function stopAlarm(){stopSeq();$('alarm').hidden=true;alarmOpen=false;if(alarmTimer){clearInterval(alarmTimer);alarmTimer=null}}
 $('aoff').onclick=stopAlarm;
 
 /* ---------- podešavanja ---------- */
 function updTstat(){
   $('tstat').textContent='Zvuk: radi posle dodira. Blic kamere: '+(TORCH===true?'radi':TORCH===false?'nije dostupan (koristi se blic ekrana)':'nije probano');
 }
+function fillVoices(){
+  var sel=$('tVoice'),vs=(window.speechSynthesis&&speechSynthesis.getVoices())||[],list=[],i;
+  sel.innerHTML='';
+  for(i=0;i<vs.length;i++)if(/^(sr|hr|bs|en)/i.test(vs[i].lang))list.push(vs[i]);
+  list.sort(function(a,b){var ra=/^en/i.test(a.lang)===(S.tts.lang==='en')?0:1,rb=/^en/i.test(b.lang)===(S.tts.lang==='en')?0:1;return ra-rb||(a.name<b.name?-1:1)});
+  list.forEach(function(v){var o=document.createElement('option');o.value=v.name;o.textContent=v.name+' ('+v.lang+')';sel.appendChild(o)});
+  if(!list.length){var o=document.createElement('option');o.value='';o.textContent='nema glasova';sel.appendChild(o)}
+  var cur=ttsVoice();if(cur)sel.value=cur.name;
+}
+if(window.speechSynthesis)speechSynthesis.onvoiceschanged=fillVoices;
+function saveTts(){sv('tts',S.tts)}
 function renderSettings(){
+  $('cTts').checked=!!S.tts.on;$('tLang').value=S.tts.lang;$('tRate').value=S.tts.rate;$('tPitch').value=S.tts.pitch;$('tReps').value=S.tts.reps;
+  $('trv').textContent=S.tts.rate;$('tpv').textContent=S.tts.pitch;$('tnv').textContent=S.tts.reps;fillVoices();
   $('cNames').checked=!!S.names;$('lv').textContent=S.lead+' min';updTstat();
   var k=$('klist');k.innerHTML='';
   S.known.slice().sort(nat).forEach(function(l){
@@ -457,6 +515,12 @@ function renderSettings(){
 }
 $('bSet').onclick=function(){renderSettings();$('set').hidden=false};
 $('sclose').onclick=function(){$('set').hidden=true;render()};
+$('cTts').onchange=function(){S.tts.on=this.checked;saveTts()};
+$('tLang').onchange=function(){S.tts.lang=this.value;S.tts.voice='';saveTts();fillVoices();var v=ttsVoice();if(v){S.tts.voice=v.name;saveTts()}};
+$('tVoice').onchange=function(){S.tts.voice=this.value;saveTts()};
+$('tRate').oninput=function(){S.tts.rate=parseFloat(this.value);$('trv').textContent=this.value;saveTts()};
+$('tPitch').oninput=function(){S.tts.pitch=parseFloat(this.value);$('tpv').textContent=this.value;saveTts()};
+$('tReps').oninput=function(){S.tts.reps=parseInt(this.value,10);$('tnv').textContent=this.value;saveTts()};
 $('cNames').onchange=function(){S.names=this.checked;sv('names',S.names);render()};
 function setLead(v){
   S.lead=Math.max(3,Math.min(30,v));sv('lead',S.lead);$('lv').textContent=S.lead+' min';
@@ -466,7 +530,8 @@ function setLead(v){
 $('lm').onclick=function(){setLead(S.lead-1)};
 $('lp').onclick=function(){setLead(S.lead+1)};
 $('btest').onclick=function(){
-  audio();keepAwake();chime();screenFlash();
+  audio();keepAwake();screenFlash();
+  if(S.tts.on)runSeq(function(){return {line:'7A',m:10}});else chime();
   $('tstat').textContent='Probam kameru…';
   testTorch().then(function(ok){updTstat();if(ok)torchPulses(2)});
 };
